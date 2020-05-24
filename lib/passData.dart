@@ -5,3 +5,4 @@
  var musicLocalFilePath ;
  var musicAssetPath ;
  var musicOnlineFilePath ;
+ var htmlFile = "";

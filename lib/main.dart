@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter_html/style.dart';
+
 import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart';
 import 'package:kobita/passData.dart';
@@ -33,16 +34,18 @@ import 'package:flutter/services.dart' show ByteData, rootBundle;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
 import 'package:flutter_full_pdf_viewer/full_pdf_viewer_scaffold.dart';
-import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:kobita/AppAllData.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import 'AnotherMusicPlayer.dart';
 import 'CategoryActivity.dart';
+import 'CustomBodyModel.dart';
 import 'FullPDFViewerOnline.dart';
 import 'MyAudioPlayer.dart';
 import 'MyMusicPLayer.dart';
 import 'OnlinePDFScreen.dart';
+import 'customweb.dart';
 import 'myAd.dart';
 
 void main() {
@@ -110,7 +113,7 @@ Future<String> _loadAssetFromNet() async {
 }
 
 Future<AppAllData> loadProjectData() async {
-  String jsonString = await _loadAssetFromNet();
+  String jsonString = await _loadAsset();
   final jsonResponse = json.decode(jsonString);
   AppAllData data = new AppAllData.fromJson(jsonResponse);
   appAllDataCached = data;
@@ -575,15 +578,13 @@ Widget secondLevelWidget() {
                                   left: 15.0,
                                   right: 15.0,
                                   bottom: 100.0,
-                                  child: new Container(
-                                      child: new SingleChildScrollView(
-                                    child: Html(
-                                      data: projectSnap
-                                          .data.collections[0].description
-                                          .toString(),
 
-                                    ),
-                                  )),
+                                  child: Html(
+                                    data: prepareHTMLData(projectSnap
+                                        .data.collections[0].description
+                                        .toString()),
+
+                                  ),
                                 ),
                                 Positioned(
                                     bottom: 0.0,
@@ -671,12 +672,16 @@ Widget secondLevelWidget() {
                                     )),
                               ],
                             ))
-                          : new Container(
-                              child: new SingleChildScrollView(
-                                  child: Html(
-                              data: projectSnap.data.collections[0].description
-                                  .toString(),
-                            ))))
+                          : new Scaffold(
+          body: new SingleChildScrollView(
+
+            child: Html(
+              data: prepareHTMLData(projectSnap
+                  .data.collections[0].description
+                  .toString()),
+
+            ),
+          )))
                       : (projectSnap.data.collections[0].description
                               .toString()
                               .endsWith(".pdf")
@@ -858,11 +863,120 @@ Widget secondLevelWidget() {
                                     )
                                   ],
                                 ))
-                              : Text("Unknown format"))))
+                              : createCustomLayout(projectSnap.data.collections[0].description.toString(),projectSnap.data.collections[0].answer,context))))
                   : Text("File Not available")));
     },
     future: loadSecondaryCategories(),
   );
+}
+
+Widget createCustomLayout(String string, answer,BuildContext context) {
+  var commentWidgets = List<Widget>();
+  //List<Widget> widgetList = [];
+  List<CustomBodyModel> allObjecs = [];
+  final jsonResponse = json.decode(string);
+  for(Map i in jsonResponse){
+  if(  CustomBodyModel.fromJson(i).type.contains("Text")){
+    commentWidgets.add(new Padding(
+      padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
+      child: Text(CustomBodyModel.fromJson(i).body),
+    ));
+  }else  if(  CustomBodyModel.fromJson(i).type.contains("img")){
+    commentWidgets.add(new Padding(
+      padding: EdgeInsets.fromLTRB(00, 00, 00, 00),
+      child: Image.network(CustomBodyModel.fromJson(i).body ,fit: BoxFit.fill),
+    ));
+  }
+
+  }
+  if(answer!=null){
+    String audioFile = answer.toString();
+    Widget audioPlayer = createAnAudioView(audioFile,context);
+    commentWidgets.add(audioPlayer);
+  }
+
+
+  SingleChildScrollView s =new SingleChildScrollView(
+    child: Column(
+      children:commentWidgets,
+
+    ),
+  );
+
+  return s;
+}
+
+Widget createAnAudioView(String audioFile,BuildContext context) {
+  return FutureBuilder(
+    builder: (context, projectSnap_bool) {
+      return (!didPassedFirstTest)
+          ? Center(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+                10, 10, 10, 10),
+            child: Text(
+              "Answer file not downloaded",
+              style: TextStyle(
+                  color: Colors.pink,
+                  fontSize: 17),
+            ),
+          ))
+          : FutureBuilder(
+        builder:
+            (context, projectSnap_) {
+          return isDownloading
+              ? Center(
+
+            child: Column(
+              mainAxisAlignment:
+              MainAxisAlignment
+                  .center,
+              crossAxisAlignment:
+              CrossAxisAlignment
+                  .center,
+              children: <Widget>[
+                Padding(
+                  padding:
+                  EdgeInsets
+                      .fromLTRB(
+                      0,
+                      0,
+                      0,
+                      10),
+                  child: Text(
+                    "Please wait while your file downlaods",
+                    style: TextStyle(
+                        color: Colors
+                            .pink,
+                        fontSize:
+                        17),
+                  ),
+                ),
+                CircularProgressIndicator(
+                    backgroundColor:
+                    Colors
+                        .amber)
+              ],
+            ), )
+              : AudioApp(
+              serverIP:
+              projectSnap_
+                  .data
+                  .toString());
+        },
+        future: createFileAnyHow(
+            audioFile,
+            context),
+      );
+    },
+    future: checkIfFileAvailable(
+        audioFile,
+        context),
+  );
+}
+
+String  prepareHTMLData(String string) {
+  return string.replaceAll("\n", "");
 }
 
 Future<void> handleInsAddEvent() async {
@@ -1151,9 +1265,10 @@ class HtmlViwer extends StatelessWidget {
             title: Text("Description"),
           ),
           body: SingleChildScrollView(
-            child: Html(
-              data: text,
-            ),
+            child : Text("ok")
+//            child: Html(
+//              data: text,
+//            ),
           ),
         ));
   }
