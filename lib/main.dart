@@ -18,7 +18,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:admob_flutter/admob_flutter.dart';
-import 'package:firebase_admob/firebase_admob.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_full_pdf_viewer/full_pdf_viewer_scaffold.dart';
@@ -53,10 +52,10 @@ void main() {
   runApp(MyApp());
 }
 
-InterstitialAd _interstitialAd;
+
 
 int CLICK_COUNTER = 0;
-int SHOW_AD_AFTER = 200;
+int SHOW_AD_AFTER = 5;
 var isLoading = true;
 bool doINeedDownload = true;
 bool doIHaveDownloadPermission = false;
@@ -114,7 +113,7 @@ Future<String> _loadAssetFromNet() async {
 }
 
 Future<AppAllData> loadProjectData() async {
-  String jsonString = await _loadAsset();
+  String jsonString = await _loadAssetFromNet();
   final jsonResponse = json.decode(jsonString);
   AppAllData data = new AppAllData.fromJson(jsonResponse);
   appAllDataCached = data;
@@ -214,7 +213,7 @@ class _MyHomePageState extends State<MyHomePage>
 
   @override
   void dispose() {
-    Ads.hideBannerAd();
+
 
     super.dispose();
   }
@@ -225,7 +224,7 @@ class _MyHomePageState extends State<MyHomePage>
 
     animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 3000),
+      duration: Duration(milliseconds: 1000),
     );
     animation = CurvedAnimation(
       parent: animationController,
@@ -237,11 +236,12 @@ class _MyHomePageState extends State<MyHomePage>
         isAnimationRunning = false;
         Navigator.push(
             context, MaterialPageRoute(builder: (context) => SpActtivity()));
+
       }
     });
 
     // FirebaseAdMob.instance.initialize(appId: FirebaseAdMob.testAppId);
-    Ads.initialize();
+
     interstitialAd = AdmobInterstitial(
       adUnitId: getInterstitialAdUnitId(),
       listener: (AdmobAdEvent event, Map<String, dynamic> args) {
@@ -1199,7 +1199,7 @@ class SpActtivity extends StatelessWidget {
 class MainActivity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    Ads.hideBannerAd();
+
     return Scaffold(
       appBar: AppBar(
         title: Text("App Name"),
@@ -1223,14 +1223,10 @@ class PDFScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    _interstitialAd?.dispose();
-    _interstitialAd = createInterstitialAd()..load();
-    Future<bool> _onWillPop() async {
-      return (_interstitialAd?.show()) ?? false;
-    }
+
 
     return WillPopScope(
-      onWillPop: _onWillPop,
+
       child: downlaodAndShowPDF(pathPDF, context),
     );
   }
@@ -1278,38 +1274,13 @@ String getBannerAdUnitId() {
 
 const String testDevice = 'YOUR_DEVICE_ID';
 
-void initialize() {
-  FirebaseAdMob.instance.initialize(appId: FirebaseAdMob.testAppId);
-}
 
-MobileAdTargetingInfo targetingInfo = MobileAdTargetingInfo(
-  testDevices: testDevice != null ? <String>[testDevice] : null,
-  keywords: <String>['foo', 'bar'],
-  contentUrl: 'http://foo.com/bar.html',
-  childDirected: true,
-  nonPersonalizedAds: true,
-);
 
-BannerAd _createBannerAd() {
-  return BannerAd(
-    adUnitId: BannerAd.testAdUnitId,
-    size: AdSize.fullBanner,
-    targetingInfo: targetingInfo,
-    listener: (MobileAdEvent event) {
-      print("BannerAd event $event");
-    },
-  );
-}
 
-InterstitialAd createInterstitialAd() {
-  return InterstitialAd(
-    adUnitId: InterstitialAd.testAdUnitId,
-    targetingInfo: targetingInfo,
-    listener: (MobileAdEvent event) {
-      print("InterstitialAd event $event");
-    },
-  );
-}
+
+
+
+
 
 //add helper ends
 
@@ -1321,8 +1292,7 @@ class HtmlViwer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    _interstitialAd?.dispose();
-    _interstitialAd = createInterstitialAd()..load();
+
     Future<bool> _onWillPop() async {
       return (await showDialog(
             context: context,
@@ -1336,7 +1306,7 @@ class HtmlViwer extends StatelessWidget {
                 ),
                 new FlatButton(
                   onPressed: () {
-                    _interstitialAd?.show();
+
                     Navigator.of(context).pop(true);
                   },
                   child: new Text('Yes'),
