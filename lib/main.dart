@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-
+import 'package:circular_reveal_animation/circular_reveal_animation.dart';
 import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -61,6 +61,7 @@ var isLoading = true;
 bool doINeedDownload = true;
 bool doIHaveDownloadPermission = false;
 bool didPassedFirstTest = false;
+bool isAnimationRunning = false;
 
 var isPDFLoading = false;
 var isPDFLocal = true;
@@ -206,7 +207,11 @@ String getInterstitialAdUnitId() {
   return null;
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage>
+    with SingleTickerProviderStateMixin {
+  AnimationController animationController;
+  Animation<double> animation;
+
   @override
   void dispose() {
     Ads.hideBannerAd();
@@ -217,6 +222,24 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+
+    animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 3000),
+    );
+    animation = CurvedAnimation(
+      parent: animationController,
+      curve: Curves.easeIn,
+    );
+    animationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        // custom code here
+        isAnimationRunning = false;
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => SpActtivity()));
+      }
+    });
+
     // FirebaseAdMob.instance.initialize(appId: FirebaseAdMob.testAppId);
     Ads.initialize();
     interstitialAd = AdmobInterstitial(
@@ -243,66 +266,151 @@ class _MyHomePageState extends State<MyHomePage> {
     //   showBannerAd(context);
     //  Ads.setBannerAd();
     //  Ads.showBannerAd();
-    return Scaffold(
-      body: new GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => MainActivity()),
-        ),
-        child: new Center(
-            child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            AdmobBanner(
-              adUnitId: getBannerAdUnitId(),
-              adSize: AdmobBannerSize.MEDIUM_RECTANGLE,
-            ),
-            new Padding(
-              padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
-              child: new Card(
-                color: Colors.blue,
-                child: new Padding(
-                  padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.description,
-                      color: Colors.white,
-                    ),
-                    title: Text(
-                      'Start Application',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    trailing: Icon(
-                      Icons.keyboard_arrow_right,
-                      color: Colors.white,
-                    ),
-                    onTap: () {
-                      Ads.hideBannerAd();
 
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => MainActivity()),
-                      );
-                    },
+    return Scaffold(
+      body: FutureBuilder(
+        builder: (context, projectSnap_) {
+          return (false)
+              ? new Container(
+                  child: Stack(
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.center,
+                      child: new Center(
+                          child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          AdmobBanner(
+                            adUnitId: getBannerAdUnitId(),
+                            adSize: AdmobBannerSize.MEDIUM_RECTANGLE,
+                          ),
+                          new Padding(
+                            padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+                            child: new Card(
+                              color: Colors.blue,
+                              child: new Padding(
+                                padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.description,
+                                    color: Colors.white,
+                                  ),
+                                  title: Text(
+                                    'Start Application',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  trailing: Icon(
+                                    Icons.keyboard_arrow_right,
+                                    color: Colors.white,
+                                  ),
+                                  onTap: () {
+                                    if (animationController.status ==
+                                            AnimationStatus.forward ||
+                                        animationController.status ==
+                                            AnimationStatus.completed) {
+                                      animationController.reverse();
+                                    } else {
+                                      animationController.forward();
+                                    }
+//                                Ads.hideBannerAd();
+//
+//                                Navigator.push(
+//                                  context,
+//                                  MaterialPageRoute(builder: (context) => MainActivity()),
+//                                );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )),
+                    )
+                  ],
+                ))
+              : CircularRevealAnimation(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.height,
+                    child: const DecoratedBox(
+                      decoration: const BoxDecoration(color: Colors.pink),
+                    ),
                   ),
-                ),
-              ),
-            ),
-          ],
-        )),
+                  animation: animation,
+                  centerAlignment: Alignment.bottomCenter,
+                );
+        },
+        future: loadFirstAnimation(),
       ),
     );
+  }
+
+  Future<bool> loadFirstAnimation() {
+    animationController.forward();
+    isAnimationRunning = true;
+    animationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        // custom code here
+        isAnimationRunning = false;
+        return false;
+      } else
+        return true;
+    });
   }
 }
 
 Widget SplashScreen(context) {
-  return Center(
-    child: RaisedButton(onPressed: () {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => MainActivity()));
-    }),
+  return Stack(
+
+    children: <Widget>[
+      Align(
+        alignment: Alignment.center,
+        child: AdmobBanner(
+          adUnitId: getBannerAdUnitId(),
+          adSize: AdmobBannerSize.MEDIUM_RECTANGLE,
+        ),
+      ),
+      Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+          child: new Card(
+            color: Colors.pink,
+            child: new Padding(
+              padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+              child: ListTile(
+                leading: Icon(
+                  Icons.description,
+                  color: Colors.white,
+                ),
+                title: Text(
+                  'Start Application',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
+                ),
+                trailing: Icon(
+                  Icons.keyboard_arrow_right,
+                  color: Colors.white,
+                ),
+                onTap: () {
+
+//                                Ads.hideBannerAd();
+//
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => MainActivity()),
+                                );
+                },
+              ),
+            ),
+          ),
+        ),
+      )
+    ],
   );
 }
 
@@ -372,9 +480,9 @@ Widget projectWidget() {
                         }
 
                         return Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(0.0),
-                            ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(0.0),
+                          ),
                           child: InkResponse(
                               onTap: () {
                                 handleInsAddEvent();
@@ -509,9 +617,9 @@ Widget secondLevelWidget() {
                           }
 
                           return Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(0.0),
-                              ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(0.0),
+                            ),
                             child: InkResponse(
                                 onTap: () {
                                   handleInsAddEvent();
@@ -578,12 +686,10 @@ Widget secondLevelWidget() {
                                   left: 15.0,
                                   right: 15.0,
                                   bottom: 100.0,
-
                                   child: Html(
                                     data: prepareHTMLData(projectSnap
                                         .data.collections[0].description
                                         .toString()),
-
                                   ),
                                 ),
                                 Positioned(
@@ -596,67 +702,68 @@ Widget secondLevelWidget() {
                                           builder: (context, projectSnap_bool) {
                                             return (!didPassedFirstTest)
                                                 ? Center(
-                                                child: Padding(
-                                                  padding: EdgeInsets.fromLTRB(
-                                                      10, 10, 10, 10),
-                                                  child: Text(
-                                                    "Answer file not downloaded",
-                                                    style: TextStyle(
-                                                        color: Colors.pink,
-                                                        fontSize: 17),
-                                                  ),
-                                                ))
+                                                    child: Padding(
+                                                    padding:
+                                                        EdgeInsets.fromLTRB(
+                                                            10, 10, 10, 10),
+                                                    child: Text(
+                                                      "Answer file not downloaded",
+                                                      style: TextStyle(
+                                                          color: Colors.pink,
+                                                          fontSize: 17),
+                                                    ),
+                                                  ))
                                                 : FutureBuilder(
-                                              builder:
-                                                  (context, projectSnap_) {
-                                                return isDownloading
-                                                    ? Center(
-
-                                                  child: Column(
-                                                    mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .center,
-                                                    crossAxisAlignment:
-                                                    CrossAxisAlignment
-                                                        .center,
-                                                    children: <Widget>[
-                                                      Padding(
-                                                        padding:
-                                                        EdgeInsets
-                                                            .fromLTRB(
-                                                            0,
-                                                            0,
-                                                            0,
-                                                            10),
-                                                        child: Text(
-                                                          "Please wait while your file downlaods",
-                                                          style: TextStyle(
-                                                              color: Colors
-                                                                  .pink,
-                                                              fontSize:
-                                                              17),
-                                                        ),
-                                                      ),
-                                                      CircularProgressIndicator(
-                                                          backgroundColor:
-                                                          Colors
-                                                              .amber)
-                                                    ],
-                                                  ), )
-                                                    : AudioApp(
-                                                    serverIP:
-                                                    projectSnap_
-                                                        .data
-                                                        .toString());
-                                              },
-                                              future: createFileAnyHow(
-                                                  projectSnap
-                                                      .data
-                                                      .collections[0]
-                                                      .answer
-                                                      .toString(),
-                                                  context),
-                                            );
+                                                    builder: (context,
+                                                        projectSnap_) {
+                                                      return isDownloading
+                                                          ? Center(
+                                                              child: Column(
+                                                                mainAxisAlignment:
+                                                                    MainAxisAlignment
+                                                                        .center,
+                                                                crossAxisAlignment:
+                                                                    CrossAxisAlignment
+                                                                        .center,
+                                                                children: <
+                                                                    Widget>[
+                                                                  Padding(
+                                                                    padding: EdgeInsets
+                                                                        .fromLTRB(
+                                                                            0,
+                                                                            0,
+                                                                            0,
+                                                                            10),
+                                                                    child: Text(
+                                                                      "Please wait while your file downlaods",
+                                                                      style: TextStyle(
+                                                                          color: Colors
+                                                                              .pink,
+                                                                          fontSize:
+                                                                              17),
+                                                                    ),
+                                                                  ),
+                                                                  CircularProgressIndicator(
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .amber)
+                                                                ],
+                                                              ),
+                                                            )
+                                                          : AudioApp(
+                                                              serverIP:
+                                                                  projectSnap_
+                                                                      .data
+                                                                      .toString());
+                                                    },
+                                                    future: createFileAnyHow(
+                                                        projectSnap
+                                                            .data
+                                                            .collections[0]
+                                                            .answer
+                                                            .toString(),
+                                                        context),
+                                                  );
                                           },
                                           future: checkIfFileAvailable(
                                               projectSnap
@@ -673,15 +780,13 @@ Widget secondLevelWidget() {
                               ],
                             ))
                           : new Scaffold(
-          body: new SingleChildScrollView(
-
-            child: Html(
-              data: prepareHTMLData(projectSnap
-                  .data.collections[0].description
-                  .toString()),
-
-            ),
-          )))
+                              body: new SingleChildScrollView(
+                              child: Html(
+                                data: prepareHTMLData(projectSnap
+                                    .data.collections[0].description
+                                    .toString()),
+                              ),
+                            )))
                       : (projectSnap.data.collections[0].description
                               .toString()
                               .endsWith(".pdf")
@@ -777,7 +882,6 @@ Widget secondLevelWidget() {
                               ? (Stack(
                                   children: <Widget>[
                                     Positioned(
-
                                       left: 0.0,
                                       right: 0.0,
                                       bottom: 30.0,
@@ -800,38 +904,38 @@ Widget secondLevelWidget() {
                                                       (context, projectSnap_) {
                                                     return isDownloading
                                                         ? Center(
-
-                                                      child: Column(
-                                                        mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                        crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .center,
-                                                        children: <Widget>[
-                                                          Padding(
-                                                            padding:
-                                                            EdgeInsets
-                                                                .fromLTRB(
-                                                                0,
-                                                                0,
-                                                                0,
-                                                                10),
-                                                            child: Text(
-                                                              "Please wait while your file downlaods",
-                                                              style: TextStyle(
-                                                                  color: Colors
-                                                                      .pink,
-                                                                  fontSize:
-                                                                  17),
+                                                            child: Column(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .center,
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .center,
+                                                              children: <
+                                                                  Widget>[
+                                                                Padding(
+                                                                  padding: EdgeInsets
+                                                                      .fromLTRB(
+                                                                          0,
+                                                                          0,
+                                                                          0,
+                                                                          10),
+                                                                  child: Text(
+                                                                    "Please wait while your file downlaods",
+                                                                    style: TextStyle(
+                                                                        color: Colors
+                                                                            .pink,
+                                                                        fontSize:
+                                                                            17),
+                                                                  ),
+                                                                ),
+                                                                CircularProgressIndicator(
+                                                                    backgroundColor:
+                                                                        Colors
+                                                                            .amber)
+                                                              ],
                                                             ),
-                                                          ),
-                                                          CircularProgressIndicator(
-                                                              backgroundColor:
-                                                              Colors
-                                                                  .amber)
-                                                        ],
-                                                      ), )
+                                                          )
                                                         : AudioApp(
                                                             serverIP:
                                                                 projectSnap_
@@ -858,124 +962,100 @@ Widget secondLevelWidget() {
                                       alignment: Alignment.center,
                                       child: AdmobBanner(
                                         adUnitId: getBannerAdUnitId(),
-                                        adSize: AdmobBannerSize.MEDIUM_RECTANGLE,
+                                        adSize:
+                                            AdmobBannerSize.MEDIUM_RECTANGLE,
                                       ),
                                     )
                                   ],
                                 ))
-                              : createCustomLayout(projectSnap.data.collections[0].description.toString(),projectSnap.data.collections[0].answer,context))))
+                              : createCustomLayout(
+                                  projectSnap.data.collections[0].description
+                                      .toString(),
+                                  projectSnap.data.collections[0].answer,
+                                  context))))
                   : Text("File Not available")));
     },
     future: loadSecondaryCategories(),
   );
 }
 
-Widget createCustomLayout(String string, answer,BuildContext context) {
+Widget createCustomLayout(String string, answer, BuildContext context) {
   var commentWidgets = List<Widget>();
   //List<Widget> widgetList = [];
   List<CustomBodyModel> allObjecs = [];
   final jsonResponse = json.decode(string);
-  for(Map i in jsonResponse){
-  if(  CustomBodyModel.fromJson(i).type.contains("Text")){
-    commentWidgets.add(new Padding(
-      padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
-      child: Text(CustomBodyModel.fromJson(i).body),
-    ));
-  }else  if(  CustomBodyModel.fromJson(i).type.contains("img")){
-    commentWidgets.add(new Padding(
-      padding: EdgeInsets.fromLTRB(00, 00, 00, 00),
-      child: Image.network(CustomBodyModel.fromJson(i).body ,fit: BoxFit.fill),
-    ));
+  for (Map i in jsonResponse) {
+    if (CustomBodyModel.fromJson(i).type.contains("Text")) {
+      commentWidgets.add(new Padding(
+        padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
+        child: Text(CustomBodyModel.fromJson(i).body),
+      ));
+    } else if (CustomBodyModel.fromJson(i).type.contains("img")) {
+      commentWidgets.add(new Padding(
+        padding: EdgeInsets.fromLTRB(00, 00, 00, 00),
+        child:
+            Image.network(CustomBodyModel.fromJson(i).body, fit: BoxFit.fill),
+      ));
+    }
   }
-
-  }
-  if(answer!=null){
+  if (answer != null) {
     String audioFile = answer.toString();
-    Widget audioPlayer = createAnAudioView(audioFile,context);
+    Widget audioPlayer = createAnAudioView(audioFile, context);
     commentWidgets.add(audioPlayer);
   }
 
-
-  SingleChildScrollView s =new SingleChildScrollView(
+  SingleChildScrollView s = new SingleChildScrollView(
     child: Column(
-      children:commentWidgets,
-
+      children: commentWidgets,
     ),
   );
 
   return s;
 }
 
-Widget createAnAudioView(String audioFile,BuildContext context) {
+Widget createAnAudioView(String audioFile, BuildContext context) {
   return FutureBuilder(
     builder: (context, projectSnap_bool) {
       return (!didPassedFirstTest)
           ? Center(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-                10, 10, 10, 10),
-            child: Text(
-              "Answer file not downloaded",
-              style: TextStyle(
-                  color: Colors.pink,
-                  fontSize: 17),
-            ),
-          ))
+              child: Padding(
+              padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
+              child: Text(
+                "Answer file not downloaded",
+                style: TextStyle(color: Colors.pink, fontSize: 17),
+              ),
+            ))
           : FutureBuilder(
-        builder:
-            (context, projectSnap_) {
-          return isDownloading
-              ? Center(
-
-            child: Column(
-              mainAxisAlignment:
-              MainAxisAlignment
-                  .center,
-              crossAxisAlignment:
-              CrossAxisAlignment
-                  .center,
-              children: <Widget>[
-                Padding(
-                  padding:
-                  EdgeInsets
-                      .fromLTRB(
-                      0,
-                      0,
-                      0,
-                      10),
-                  child: Text(
-                    "Please wait while your file downlaods",
-                    style: TextStyle(
-                        color: Colors
-                            .pink,
-                        fontSize:
-                        17),
-                  ),
-                ),
-                CircularProgressIndicator(
-                    backgroundColor:
-                    Colors
-                        .amber)
-              ],
-            ), )
-              : AudioApp(
-              serverIP:
-              projectSnap_
-                  .data
-                  .toString());
-        },
-        future: createFileAnyHow(
-            audioFile,
-            context),
-      );
+              builder: (context, projectSnap_) {
+                return isDownloading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: <Widget>[
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
+                              child: Text(
+                                "Please wait while your file downlaods",
+                                style:
+                                    TextStyle(color: Colors.pink, fontSize: 17),
+                              ),
+                            ),
+                            CircularProgressIndicator(
+                                backgroundColor: Colors.amber)
+                          ],
+                        ),
+                      )
+                    : AudioApp(serverIP: projectSnap_.data.toString());
+              },
+              future: createFileAnyHow(audioFile, context),
+            );
     },
-    future: checkIfFileAvailable(
-        audioFile,
-        context),
+    future: checkIfFileAvailable(audioFile, context),
   );
 }
 
-String  prepareHTMLData(String string) {
+String prepareHTMLData(String string) {
   return string.replaceAll("\n", "");
 }
 
@@ -1105,6 +1185,15 @@ Widget myDrawer() {
       ],
     ),
   );
+}
+class SpActtivity extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: SplashScreen(context)
+    );
+  }
 }
 
 class MainActivity extends StatelessWidget {
@@ -1264,12 +1353,11 @@ class HtmlViwer extends StatelessWidget {
           appBar: AppBar(
             title: Text("Description"),
           ),
-          body: SingleChildScrollView(
-            child : Text("ok")
+          body: SingleChildScrollView(child: Text("ok")
 //            child: Html(
 //              data: text,
 //            ),
-          ),
+              ),
         ));
   }
 }
