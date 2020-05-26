@@ -52,8 +52,6 @@ void main() {
   runApp(MyApp());
 }
 
-
-
 int CLICK_COUNTER = 0;
 int SHOW_AD_AFTER = 5;
 var isLoading = true;
@@ -213,8 +211,6 @@ class _MyHomePageState extends State<MyHomePage>
 
   @override
   void dispose() {
-
-
     super.dispose();
   }
 
@@ -236,7 +232,6 @@ class _MyHomePageState extends State<MyHomePage>
         isAnimationRunning = false;
         Navigator.push(
             context, MaterialPageRoute(builder: (context) => SpActtivity()));
-
       }
     });
 
@@ -364,7 +359,6 @@ class _MyHomePageState extends State<MyHomePage>
 
 Widget SplashScreen(context) {
   return Stack(
-
     children: <Widget>[
       Align(
         alignment: Alignment.center,
@@ -373,14 +367,19 @@ Widget SplashScreen(context) {
           adSize: AdmobBannerSize.MEDIUM_RECTANGLE,
         ),
       ),
-      Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
+      Positioned(
+          bottom : 100.0,
+        left :0.0,
+        right :0.0,
+        child :  Padding(
           padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
           child: new Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30.0),
+            ),
             color: Colors.pink,
             child: new Padding(
-              padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+              padding: EdgeInsets.fromLTRB(5, 5, 5, 5),
               child: ListTile(
                 leading: Icon(
                   Icons.description,
@@ -389,26 +388,79 @@ Widget SplashScreen(context) {
                 title: Text(
                   'Start Application',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold),
+                      color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 trailing: Icon(
                   Icons.keyboard_arrow_right,
                   color: Colors.white,
                 ),
                 onTap: () {
-
 //                                Ads.hideBannerAd();
 //
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => MainActivity()),
-                                );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => MainActivity()),
+                  );
                 },
               ),
             ),
           ),
         ),
+      ),
+      Positioned(
+          bottom : 50.0,
+          left :0.0,
+          right :0.0,
+        child:
+
+          Center (
+
+              child :Wrap(
+
+                  children: <Widget>[
+                   Card(
+                          color: Colors.pink,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
+                          child:Container(
+                            width: 120,
+
+                            child:
+                           Center(
+                             child :  Padding(
+                                 padding: EdgeInsets.all(10.0),
+                                 child : Text("Rate us",style : TextStyle(fontSize: 14,
+                                     color: Colors.white, fontWeight: FontWeight.bold))
+                             )
+                           ),
+
+                          ),
+                        ),
+
+
+
+                        Card(
+
+                            color: Colors.pink,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          child :Container(
+                            width : 120,
+                            child :Center(
+                              child : Padding(
+                                  padding: EdgeInsets.all(10.0),
+                                  child : Text("More Apps",style : TextStyle(fontSize: 14,
+                                      color: Colors.white, fontWeight: FontWeight.bold))
+                              )
+                            )
+                          )
+                        )
+
+                  ])
+          )
+
       )
     ],
   );
@@ -1186,20 +1238,44 @@ Widget myDrawer() {
     ),
   );
 }
+
 class SpActtivity extends StatelessWidget {
+
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: SplashScreen(context)
-    );
+    Future<bool> _onWillPop() async {
+      return (await showDialog(
+        context: context,
+        builder: (context) =>
+        new AlertDialog(
+          title: new Text('Are you sure?'),
+          content: new Text('Do you want to exit an App'),
+          actions: <Widget>[
+            new FlatButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: new Text('No'),
+            ),
+            new FlatButton(
+              onPressed: () {
+                SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+              },
+              child: new Text('Yes'),
+            ),
+          ],
+        ),
+      )) ??
+          false;
+    }
+    return  WillPopScope(
+        onWillPop: _onWillPop,
+        child: Container(color: Colors.white, child: SplashScreen(context)));
   }
 }
 
 class MainActivity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text("App Name"),
@@ -1223,10 +1299,7 @@ class PDFScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-
     return WillPopScope(
-
       child: downlaodAndShowPDF(pathPDF, context),
     );
   }
@@ -1274,14 +1347,6 @@ String getBannerAdUnitId() {
 
 const String testDevice = 'YOUR_DEVICE_ID';
 
-
-
-
-
-
-
-
-
 //add helper ends
 
 //html vier start
@@ -1292,7 +1357,6 @@ class HtmlViwer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     Future<bool> _onWillPop() async {
       return (await showDialog(
             context: context,
@@ -1306,7 +1370,6 @@ class HtmlViwer extends StatelessWidget {
                 ),
                 new FlatButton(
                   onPressed: () {
-
                     Navigator.of(context).pop(true);
                   },
                   child: new Text('Yes'),
