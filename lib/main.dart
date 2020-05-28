@@ -45,6 +45,7 @@ import 'MyAudioPlayer.dart';
 import 'MyMusicPLayer.dart';
 import 'OnlinePDFScreen.dart';
 import 'customweb.dart';
+import 'local_files.dart';
 import 'myAd.dart';
 
 void main() {
@@ -368,10 +369,10 @@ Widget SplashScreen(context) {
         ),
       ),
       Positioned(
-          bottom : 100.0,
-        left :0.0,
-        right :0.0,
-        child :  Padding(
+        bottom: 100.0,
+        left: 0.0,
+        right: 0.0,
+        child: Padding(
           padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
           child: new Card(
             shape: RoundedRectangleBorder(
@@ -408,60 +409,44 @@ Widget SplashScreen(context) {
         ),
       ),
       Positioned(
-          bottom : 50.0,
-          left :0.0,
-          right :0.0,
-        child:
-
-          Center (
-
-              child :Wrap(
-
-                  children: <Widget>[
-                   Card(
-                          color: Colors.pink,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          child:Container(
-                            width: 120,
-
-                            child:
-                           Center(
-                             child :  Padding(
-                                 padding: EdgeInsets.all(10.0),
-                                 child : Text("Rate us",style : TextStyle(fontSize: 14,
-                                     color: Colors.white, fontWeight: FontWeight.bold))
-                             )
-                           ),
-
-                          ),
-                        ),
-
-
-
-                        Card(
-
-                            color: Colors.pink,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0),
-                            ),
-                          child :Container(
-                            width : 120,
-                            child :Center(
-                              child : Padding(
-                                  padding: EdgeInsets.all(10.0),
-                                  child : Text("More Apps",style : TextStyle(fontSize: 14,
-                                      color: Colors.white, fontWeight: FontWeight.bold))
-                              )
-                            )
-                          )
-                        )
-
-                  ])
-          )
-
-      )
+          bottom: 50.0,
+          left: 0.0,
+          right: 0.0,
+          child: Center(
+              child: Wrap(children: <Widget>[
+            Card(
+              color: Colors.pink,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: Container(
+                width: 120,
+                child: Center(
+                    child: Padding(
+                        padding: EdgeInsets.all(10.0),
+                        child: Text("Rate us",
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold)))),
+              ),
+            ),
+            Card(
+                color: Colors.pink,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: Container(
+                    width: 120,
+                    child: Center(
+                        child: Padding(
+                            padding: EdgeInsets.all(10.0),
+                            child: Text("More Apps",
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold))))))
+          ])))
     ],
   );
 }
@@ -726,7 +711,9 @@ Widget secondLevelWidget() {
                     )
                   ],
                 )
-              : (true
+              : (!(projectSnap.data.collections[0].description
+                      .toString()
+                      .contains("page:=>"))
                   ? (projectSnap.data.collections[0].description
                           .toString()
                           .contains("<!DOCTYPE html>")
@@ -738,10 +725,12 @@ Widget secondLevelWidget() {
                                   left: 15.0,
                                   right: 15.0,
                                   bottom: 100.0,
-                                  child: Html(
-                                    data: prepareHTMLData(projectSnap
-                                        .data.collections[0].description
-                                        .toString()),
+                                  child: SingleChildScrollView(
+                                    child: Html(
+                                      data: prepareHTMLData(projectSnap
+                                          .data.collections[0].description
+                                          .toString()),
+                                    ),
                                   ),
                                 ),
                                 Positioned(
@@ -1025,10 +1014,19 @@ Widget secondLevelWidget() {
                                       .toString(),
                                   projectSnap.data.collections[0].answer,
                                   context))))
-                  : Text("File Not available")));
+                  : searchAndReturnStaticFile(projectSnap.data.collections[0].description
+          .toString())));
     },
     future: loadSecondaryCategories(),
   );
+}
+
+Widget  searchAndReturnStaticFile(String string) {
+  String file = string.substring(7,(string.length));
+
+  if(file.contains("pageOne")){
+    return pageOne;
+  }else return Text("File is not avilable on asset");
 }
 
 Widget createCustomLayout(String string, answer, BuildContext context) {
@@ -1240,34 +1238,32 @@ Widget myDrawer() {
 }
 
 class SpActtivity extends StatelessWidget {
-
-
   @override
   Widget build(BuildContext context) {
     Future<bool> _onWillPop() async {
       return (await showDialog(
-        context: context,
-        builder: (context) =>
-        new AlertDialog(
-          title: new Text('Are you sure?'),
-          content: new Text('Do you want to exit an App'),
-          actions: <Widget>[
-            new FlatButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: new Text('No'),
+            context: context,
+            builder: (context) => new AlertDialog(
+              title: new Text('Are you sure?'),
+              content: new Text('Do you want to exit an App'),
+              actions: <Widget>[
+                new FlatButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: new Text('No'),
+                ),
+                new FlatButton(
+                  onPressed: () {
+                    SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+                  },
+                  child: new Text('Yes'),
+                ),
+              ],
             ),
-            new FlatButton(
-              onPressed: () {
-                SystemChannels.platform.invokeMethod('SystemNavigator.pop');
-              },
-              child: new Text('Yes'),
-            ),
-          ],
-        ),
-      )) ??
+          )) ??
           false;
     }
-    return  WillPopScope(
+
+    return WillPopScope(
         onWillPop: _onWillPop,
         child: Container(color: Colors.white, child: SplashScreen(context)));
   }
