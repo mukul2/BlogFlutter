@@ -10,7 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart';
+import 'package:kobita/listViewData.dart';
 import 'package:kobita/passData.dart';
+import 'package:kobita/staticpageThree.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async' show Future;
 import 'dart:async';
@@ -35,6 +37,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_full_pdf_viewer/full_pdf_viewer_scaffold.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:kobita/AppAllData.dart';
+import 'package:share/share.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'AnotherMusicPlayer.dart';
@@ -48,18 +52,60 @@ import 'customweb.dart';
 import 'local_files.dart';
 import 'myAd.dart';
 
+String APP_NAME = "App Name Here";
+String APP_SHARE_LINK = "https://www.youtube.com";
+
+String APP_ID_ANDROID = 'ca-app-pub-3940256099942544~3347511713';
+String APP_ID_IOS = 'ca-app-pub-3940256099942544~1458002511';
+
+String INT_ADD_ID_ANDROID = 'ca-app-pub-3940256099942544/1033173712';
+String INT_ADD_ID_IOS = 'ca-app-pub-3940256099942544/4411468910';
+
+String BANNER_ADD_ID_ANDROID = 'ca-app-pub-3940256099942544/6300978111';
+String BANNER_ADD_ID_IOS = 'ca-app-pub-3940256099942544/2934735716';
+
+String getInterstitialAdUnitId() {
+  if (Platform.isIOS) {
+    return INT_ADD_ID_IOS;
+  } else if (Platform.isAndroid) {
+    return INT_ADD_ID_ANDROID;
+  }
+  return null;
+}
+
+String getAppId() {
+  if (Platform.isIOS) {
+    return APP_ID_IOS;
+  } else if (Platform.isAndroid) {
+    return APP_ID_ANDROID;
+  }
+  return null;
+}
+
+String getBannerAdUnitId() {
+  if (Platform.isIOS) {
+    return BANNER_ADD_ID_IOS;
+  } else if (Platform.isAndroid) {
+    return BANNER_ADD_ID_ANDROID;
+  }
+  return null;
+}
+
 void main() {
   Admob.initialize(getAppId());
   runApp(MyApp());
 }
 
 int CLICK_COUNTER = 0;
-int SHOW_AD_AFTER = 5;
+
+int SHOW_AD_AFTER = 30;
+
 var isLoading = true;
 bool doINeedDownload = true;
 bool doIHaveDownloadPermission = false;
 bool didPassedFirstTest = false;
 bool isAnimationRunning = false;
+bool loadFromOnline = false;
 
 var isPDFLoading = false;
 var isPDFLocal = true;
@@ -112,7 +158,8 @@ Future<String> _loadAssetFromNet() async {
 }
 
 Future<AppAllData> loadProjectData() async {
-  String jsonString = await _loadAssetFromNet();
+  String jsonString =
+      loadFromOnline ? await _loadAssetFromNet() : await _loadAsset();
   final jsonResponse = json.decode(jsonString);
   AppAllData data = new AppAllData.fromJson(jsonResponse);
   appAllDataCached = data;
@@ -194,15 +241,6 @@ class MyHomePage extends StatefulWidget {
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
-}
-
-String getInterstitialAdUnitId() {
-  if (Platform.isIOS) {
-    return 'ca-app-pub-3940256099942544/4411468910';
-  } else if (Platform.isAndroid) {
-    return 'ca-app-pub-3940256099942544/1033173712';
-  }
-  return null;
 }
 
 class _MyHomePageState extends State<MyHomePage>
@@ -296,6 +334,7 @@ class _MyHomePageState extends State<MyHomePage>
                                     'Start Application',
                                     style: TextStyle(
                                         color: Colors.white,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold),
                                   ),
                                   trailing: Icon(
@@ -451,29 +490,6 @@ Widget SplashScreen(context) {
   );
 }
 
-Widget downlaodAndShowPDF(String link, BuildContext context) {
-  return FutureBuilder(
-    builder: (context, projectSnap) {
-      return isPDFLoading
-          ? Center(
-              child: CircularProgressIndicator(),
-            )
-          : PDFViewerScaffold(
-              appBar: AppBar(
-                title: Text("Document"),
-                actions: <Widget>[
-                  IconButton(
-                    icon: Icon(Icons.share),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-              path: projectSnap.data);
-    },
-    future: isPDFLocal ? copyAsset(link) : createFileOfPdfUrl(link, context),
-  );
-}
-
 Widget projectWidget() {
   return FutureBuilder(
     builder: (context, projectSnap) {
@@ -539,12 +555,12 @@ Widget projectWidget() {
                                       padding: EdgeInsets.all(8.0),
                                       child: isImageLive
                                           ? Image.network(categories.iconUrl,
-                                              width: 120,
-                                              height: 120,
+                                              width: 100,
+                                              height: 100,
                                               fit: BoxFit.fill)
                                           : Image.asset(localPath,
-                                              width: 120,
-                                              height: 120,
+                                              width: 100,
+                                              height: 100,
                                               fit: BoxFit.fill),
                                     ),
                                     Padding(
@@ -625,9 +641,6 @@ Widget secondLevelWidget() {
                             new SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2),
                         itemBuilder: (context, index) {
-                          // Categories categories = projectSnap.data.categories[index];
-                          // Collections collections = projectSnap.data.collections[index];
-
                           Categories categories =
                               projectSnap.data.categories[index];
                           bool isImageLive = false;
@@ -710,323 +723,329 @@ Widget secondLevelWidget() {
                       ),
                     )
                   ],
-                )
-              : (!(projectSnap.data.collections[0].description
+                ) //final item starts showing here
+              : ((projectSnap.data.collections[0].description
                       .toString()
-                      .contains("page:=>"))
-                  ? (projectSnap.data.collections[0].description
-                          .toString()
-                          .contains("<!DOCTYPE html>")
-                      ? (projectSnap.data.collections[0].answer != null
-                          ? (new Stack(
-                              children: <Widget>[
-                                Positioned(
-                                  top: 0.0,
-                                  left: 15.0,
-                                  right: 15.0,
-                                  bottom: 100.0,
-                                  child: SingleChildScrollView(
-                                    child: Html(
-                                      data: prepareHTMLData(projectSnap
-                                          .data.collections[0].description
-                                          .toString()),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                    bottom: 0.0,
-                                    left: 0.0,
-                                    right: 0.0,
-                                    child: new Column(
-                                      children: <Widget>[
-                                        FutureBuilder(
-                                          builder: (context, projectSnap_bool) {
-                                            return (!didPassedFirstTest)
-                                                ? Center(
-                                                    child: Padding(
-                                                    padding:
-                                                        EdgeInsets.fromLTRB(
-                                                            10, 10, 10, 10),
-                                                    child: Text(
-                                                      "Answer file not downloaded",
-                                                      style: TextStyle(
-                                                          color: Colors.pink,
-                                                          fontSize: 17),
-                                                    ),
-                                                  ))
-                                                : FutureBuilder(
-                                                    builder: (context,
-                                                        projectSnap_) {
-                                                      return isDownloading
-                                                          ? Center(
-                                                              child: Column(
-                                                                mainAxisAlignment:
-                                                                    MainAxisAlignment
-                                                                        .center,
-                                                                crossAxisAlignment:
-                                                                    CrossAxisAlignment
-                                                                        .center,
-                                                                children: <
-                                                                    Widget>[
-                                                                  Padding(
-                                                                    padding: EdgeInsets
-                                                                        .fromLTRB(
-                                                                            0,
-                                                                            0,
-                                                                            0,
-                                                                            10),
-                                                                    child: Text(
-                                                                      "Please wait while your file downlaods",
-                                                                      style: TextStyle(
-                                                                          color: Colors
-                                                                              .pink,
-                                                                          fontSize:
-                                                                              17),
-                                                                    ),
-                                                                  ),
-                                                                  CircularProgressIndicator(
-                                                                      backgroundColor:
-                                                                          Colors
-                                                                              .amber)
-                                                                ],
-                                                              ),
-                                                            )
-                                                          : AudioApp(
-                                                              serverIP:
-                                                                  projectSnap_
-                                                                      .data
-                                                                      .toString());
-                                                    },
-                                                    future: createFileAnyHow(
-                                                        projectSnap
-                                                            .data
-                                                            .collections[0]
-                                                            .answer
-                                                            .toString(),
-                                                        context),
-                                                  );
-                                          },
-                                          future: checkIfFileAvailable(
-                                              projectSnap
-                                                  .data.collections[0].answer
-                                                  .toString(),
-                                              context),
-                                        ),
-                                        AdmobBanner(
-                                          adUnitId: getBannerAdUnitId(),
-                                          adSize: AdmobBannerSize.FULL_BANNER,
-                                        )
-                                      ],
-                                    )),
-                              ],
-                            ))
-                          : new Scaffold(
-                              body: new SingleChildScrollView(
-                              child: Html(
-                                data: prepareHTMLData(projectSnap
-                                    .data.collections[0].description
-                                    .toString()),
+                      .contains("======="))
+                  ? searchAndReturnStaticFile(
+          projectSnap.data.collections[0].description.toString())
+                  :(projectSnap.data.collections[0].description
+          .toString()
+          .contains("<!DOCTYPE html>")
+          ? (projectSnap.data.collections[0].answer != null
+          ? (new Stack(
+        children: <Widget>[
+          Positioned(
+            top: 0.0,
+            left: 15.0,
+            right: 15.0,
+            bottom: 100.0,
+            child: SingleChildScrollView(
+              child: Html(
+                data: prepareHTMLData(projectSnap
+                    .data.collections[0].description
+                    .toString()),
+              ),
+            ),
+          ),
+          Positioned(
+              bottom: 0.0,
+              left: 0.0,
+              right: 0.0,
+              child: new Column(
+                children: <Widget>[
+                  FutureBuilder(
+                    builder: (context, projectSnap_bool) {
+                      return (false &
+                      !didPassedFirstTest) //audio download promt
+                          ? Center(
+                          child: Padding(
+                            padding:
+                            EdgeInsets.fromLTRB(
+                                10, 10, 10, 10),
+                            child: Text(
+                              "Answer file not downloaded",
+                              style: TextStyle(
+                                  color: Colors.pink,
+                                  fontSize: 17),
+                            ),
+                          ))
+                          : AdmobBanner(
+                        adUnitId:
+                        getBannerAdUnitId(),
+                        adSize: AdmobBannerSize
+                            .FULL_BANNER,
+                      );
+                    },
+                    future: checkIfFileAvailableNoDialog(
+                        projectSnap
+                            .data.collections[0].answer
+                            .toString(),
+                        context),
+                  ),
+                  FutureBuilder(
+                    builder: (context, projectSnap_) {
+                      return isDownloading
+                          ? Center(
+                        child: Column(
+                          mainAxisAlignment:
+                          MainAxisAlignment
+                              .center,
+                          crossAxisAlignment:
+                          CrossAxisAlignment
+                              .center,
+                          children: <Widget>[
+                            Padding(
+                              padding: EdgeInsets
+                                  .fromLTRB(
+                                  0, 0, 0, 10),
+                              child: Text(
+                                "Please wait while your file downlaods",
+                                style: TextStyle(
+                                    color:
+                                    Colors.pink,
+                                    fontSize: 17),
                               ),
-                            )))
-                      : (projectSnap.data.collections[0].description
-                              .toString()
-                              .endsWith(".pdf")
-                          ? (Stack(
-                              children: <Widget>[
-                                Positioned(
-                                  bottom: 00.0,
-                                  child: AdmobBanner(
-                                    adUnitId: getBannerAdUnitId(),
-                                    adSize: AdmobBannerSize.FULL_BANNER,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 00.0,
-                                  left: 10.0,
-                                  right: 10.0,
-                                  bottom: 60.0,
-                                  child: FutureBuilder(
-                                    builder: (context, projectSnap_bool) {
-                                      return (!didPassedFirstTest)
-                                          ? Center(
-                                              child: Padding(
-                                              padding: EdgeInsets.fromLTRB(
-                                                  10, 10, 10, 10),
-                                              child: Text(
-                                                "File is not downloaded.Please grant download permission",
-                                                style: TextStyle(
-                                                    color: Colors.pink,
-                                                    fontSize: 17),
-                                              ),
-                                            ))
-                                          : FutureBuilder(
-                                              builder: (context, projectSnap_) {
-                                                return isDownloading //check is the file needs to to be downloaded
-                                                    ? Center(
-                                                        child: Column(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .center,
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .center,
-                                                          children: <Widget>[
-                                                            Padding(
-                                                              padding:
-                                                                  EdgeInsets
-                                                                      .fromLTRB(
-                                                                          0,
-                                                                          0,
-                                                                          0,
-                                                                          10),
-                                                              child: Text(
-                                                                "Please wait while your file downlaods",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .pink,
-                                                                    fontSize:
-                                                                        17),
-                                                              ),
-                                                            ),
-                                                            CircularProgressIndicator(
-                                                                backgroundColor:
-                                                                    Colors
-                                                                        .amber)
-                                                          ],
-                                                        ),
-                                                      )
-                                                    : PDFViewerScaffold(
-                                                        path:
-                                                            projectSnap_.data);
-                                              },
-                                              future: createFileAnyHow(
-                                                  projectSnap
-                                                      .data
-                                                      .collections[0]
-                                                      .description
-                                                      .toString(),
-                                                  context),
-                                            );
-                                    },
-                                    future: checkIfFileAvailable(
-                                        projectSnap
-                                            .data.collections[0].description
-                                            .toString(),
-                                        context),
-                                  ),
-                                )
-                              ],
-                            ))
-                          : (projectSnap.data.collections[0].description
-                                  .toString()
-                                  .endsWith(".mp3")
-                              ? (Stack(
-                                  children: <Widget>[
-                                    Positioned(
-                                      left: 0.0,
-                                      right: 0.0,
-                                      bottom: 30.0,
-                                      child: FutureBuilder(
-                                        builder: (context, projectSnap_bool) {
-                                          return (!didPassedFirstTest)
-                                              ? Center(
-                                                  child: Padding(
-                                                  padding: EdgeInsets.fromLTRB(
-                                                      10, 10, 10, 10),
-                                                  child: Text(
-                                                    "File is not downloaded.Please grant download permission",
-                                                    style: TextStyle(
-                                                        color: Colors.pink,
-                                                        fontSize: 17),
-                                                  ),
-                                                ))
-                                              : FutureBuilder(
-                                                  builder:
-                                                      (context, projectSnap_) {
-                                                    return isDownloading
-                                                        ? Center(
-                                                            child: Column(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .center,
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .center,
-                                                              children: <
-                                                                  Widget>[
-                                                                Padding(
-                                                                  padding: EdgeInsets
-                                                                      .fromLTRB(
-                                                                          0,
-                                                                          0,
-                                                                          0,
-                                                                          10),
-                                                                  child: Text(
-                                                                    "Please wait while your file downlaods",
-                                                                    style: TextStyle(
-                                                                        color: Colors
-                                                                            .pink,
-                                                                        fontSize:
-                                                                            17),
-                                                                  ),
-                                                                ),
-                                                                CircularProgressIndicator(
-                                                                    backgroundColor:
-                                                                        Colors
-                                                                            .amber)
-                                                              ],
-                                                            ),
-                                                          )
-                                                        : AudioApp(
-                                                            serverIP:
-                                                                projectSnap_
-                                                                    .data
-                                                                    .toString());
-                                                  },
-                                                  future: createFileAnyHow(
-                                                      projectSnap
-                                                          .data
-                                                          .collections[0]
-                                                          .description
-                                                          .toString(),
-                                                      context),
-                                                );
-                                        },
-                                        future: checkIfFileAvailable(
-                                            projectSnap
-                                                .data.collections[0].description
-                                                .toString(),
-                                            context),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: AdmobBanner(
-                                        adUnitId: getBannerAdUnitId(),
-                                        adSize:
-                                            AdmobBannerSize.MEDIUM_RECTANGLE,
-                                      ),
-                                    )
-                                  ],
-                                ))
-                              : createCustomLayout(
-                                  projectSnap.data.collections[0].description
-                                      .toString(),
-                                  projectSnap.data.collections[0].answer,
-                                  context))))
-                  : searchAndReturnStaticFile(projectSnap.data.collections[0].description
-          .toString())));
+                            ),
+                            CircularProgressIndicator(
+                                backgroundColor:
+                                Colors.amber)
+                          ],
+                        ),
+                      )
+                          : AudioApp(
+                          serverIP: projectSnap_.data
+                              .toString());
+                    },
+                    future: createFileAnyHow(
+                        projectSnap
+                            .data.collections[0].answer
+                            .toString(),
+                        context),
+                  )
+                ],
+              )),
+        ],
+      ))
+          : new Scaffold(
+          body: new SingleChildScrollView(
+            child: Html(
+              data: prepareHTMLData(projectSnap
+                  .data.collections[0].description
+                  .toString()),
+            ),
+          )))
+          : (projectSnap.data.collections[0].description
+          .toString()
+          .endsWith(".pdf")
+          ? (Stack(
+        children: <Widget>[
+          Positioned(
+            bottom: 00.0,
+            child: AdmobBanner(
+              adUnitId: getBannerAdUnitId(),
+              adSize: AdmobBannerSize.FULL_BANNER,
+            ),
+          ),
+          Positioned(
+            top: 00.0,
+            left: 10.0,
+            right: 10.0,
+            bottom: 60.0,
+            child: FutureBuilder(
+              builder: (context, projectSnap_bool) {
+                return (!didPassedFirstTest)
+                    ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          10, 10, 10, 10),
+                      child: Text(
+                        "File is not downloaded.Please grant download permission",
+                        style: TextStyle(
+                            color: Colors.pink,
+                            fontSize: 17),
+                      ),
+                    ))
+                    : FutureBuilder(
+                  builder: (context, projectSnap_) {
+                    return isDownloading //check is the file needs to to be downloaded
+                        ? Center(
+                      child: Column(
+                        mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .center,
+                        children: <Widget>[
+                          Padding(
+                            padding:
+                            EdgeInsets
+                                .fromLTRB(
+                                0,
+                                0,
+                                0,
+                                10),
+                            child: Text(
+                              "Please wait while your file downlaods",
+                              style: TextStyle(
+                                  color: Colors
+                                      .pink,
+                                  fontSize:
+                                  17),
+                            ),
+                          ),
+                          CircularProgressIndicator(
+                              backgroundColor:
+                              Colors
+                                  .amber)
+                        ],
+                      ),
+                    )
+                        : PDFViewerScaffold(
+                        path:
+                        projectSnap_.data);
+                  },
+                  future: createFileAnyHow(
+                      projectSnap
+                          .data
+                          .collections[0]
+                          .description
+                          .toString(),
+                      context),
+                );
+              },
+              future: checkIfFileAvailable(
+                  projectSnap
+                      .data.collections[0].description
+                      .toString(),
+                  context),
+            ),
+          )
+        ],
+      ))
+          : (projectSnap.data.collections[0].description
+          .toString()
+          .endsWith(".mp3")
+          ? (Stack(
+        children: <Widget>[
+          Positioned(
+            left: 0.0,
+            right: 0.0,
+            bottom: 30.0,
+            child: FutureBuilder(
+              builder: (context, projectSnap_bool) {
+                return (false &
+                !didPassedFirstTest) //audio downoad promt
+                    ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          10, 10, 10, 10),
+                      child: Text(
+                        "File is not downloaded.Please grant download permission",
+                        style: TextStyle(
+                            color: Colors.pink,
+                            fontSize: 17),
+                      ),
+                    ))
+                    : FutureBuilder(
+                  builder:
+                      (context, projectSnap_) {
+                    return isDownloading
+                        ? Center(
+                      child: Column(
+                        mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .center,
+                        children: <
+                            Widget>[
+                          Padding(
+                            padding: EdgeInsets
+                                .fromLTRB(
+                                0,
+                                0,
+                                0,
+                                10),
+                            child: Text(
+                              "Please wait while your file downlaods",
+                              style: TextStyle(
+                                  color: Colors
+                                      .pink,
+                                  fontSize:
+                                  17),
+                            ),
+                          ),
+                          CircularProgressIndicator(
+                              backgroundColor:
+                              Colors
+                                  .amber)
+                        ],
+                      ),
+                    )
+                        : AudioApp(
+                        serverIP:
+                        projectSnap_
+                            .data
+                            .toString());
+                  },
+                  future: createFileAnyHow(
+                      projectSnap
+                          .data
+                          .collections[0]
+                          .description
+                          .toString(),
+                      context),
+                );
+              },
+              future: checkIfFileAvailableNoDialog(
+                  projectSnap
+                      .data.collections[0].description
+                      .toString(),
+                  context),
+            ),
+          ),
+          Align(
+            alignment: Alignment.center,
+            child: AdmobBanner(
+              adUnitId: getBannerAdUnitId(),
+              adSize:
+              AdmobBannerSize.MEDIUM_RECTANGLE,
+            ),
+          )
+        ],
+      ))
+          : (projectSnap.data.collections[0].description
+          .toString().contains("openlink=>")?( openlikinent(projectSnap.data.collections[0].description
+          .toString())):createCustomLayout(
+          projectSnap.data.collections[0].description
+              .toString(),
+          projectSnap.data.collections[0].answer,
+          context)))))));
     },
     future: loadSecondaryCategories(),
   );
 }
 
-Widget  searchAndReturnStaticFile(String string) {
-  String file = string.substring(7,(string.length));
+Widget openlikinent(String string) {
+   launch(string.replaceAll("openlink=>",""));
 
-  if(file.contains("pageOne")){
+  return Text("Link is opening in browser");
+}
+
+Widget searchAndReturnStaticFile(String string) {
+  String file = string.replaceAll("=", "");
+
+  if (file.contains("pageOne")) {
     return pageOne;
-  }else return Text("File is not avilable on asset");
+  } else if (file.contains("pageTwo")) {
+    return StaticThree();
+  } else if (file.contains("pageTwo")) {
+    return MyAppLi();
+  } else
+    return Text("File is not avilable on asset");
 }
 
 Widget createCustomLayout(String string, answer, BuildContext context) {
@@ -1098,7 +1117,7 @@ Widget createAnAudioView(String audioFile, BuildContext context) {
                       )
                     : AudioApp(serverIP: projectSnap_.data.toString());
               },
-              future: createFileAnyHow(audioFile, context),
+              future: checkIfFileAvailableNoDialog(audioFile, context),
             );
     },
     future: checkIfFileAvailable(audioFile, context),
@@ -1116,10 +1135,14 @@ Future<void> handleInsAddEvent() async {
     interstitialAd.load();
     if (await interstitialAd.isLoaded) {
       interstitialAd.show();
+      // showThisToast("it should show now");
+
     } else {
-      //  showThisToast("not loaded");
+      //showThisToast("i want to show but add not loaded");
     }
-  } else {}
+  } else {
+    // showThisToast("not now");
+  }
 }
 
 //second page
@@ -1187,16 +1210,6 @@ class SecondActivity extends StatelessWidget {
   }
 }
 
-Widget openFileInstantly(Collections collection, BuildContext context) {
-  String ht = collection.description;
-  if (ht.contains("<!DOCTYPE html>")) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => HtmlViwer(text: ht)),
-    );
-  }
-}
-
 Widget myDrawer() {
   return Drawer(
     // Add a ListView to the drawer. This ensures the user can scroll
@@ -1209,7 +1222,7 @@ Widget myDrawer() {
         DrawerHeader(
           child: new Center(
             child: Text(
-              'App Name',
+              APP_NAME,
               style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -1224,18 +1237,44 @@ Widget myDrawer() {
           leading: Icon(Icons.description),
           title: Text('Facebook'),
           trailing: Icon(Icons.keyboard_arrow_right),
-          onTap: () {},
+          onTap: () {
+            const url = "https://www.facebook.com";
+
+            launch(url);
+            //Share.share("https://www.facebook.com");
+          },
         ),
         ListTile(
           leading: Icon(Icons.description),
           title: Text('Youtube'),
           trailing: Icon(Icons.keyboard_arrow_right),
-          onTap: () {},
+          onTap: () {
+            const url = "https://www.youtube.com";
+
+            launch(url);
+            //Share.share("https://www.youtube.com");
+          },
         ),
+        ListTile(
+          leading: Icon(
+            Icons.archive,
+            color: Colors.deepOrange,
+          ),
+          title: Text('Twitter'),
+          trailing: Icon(Icons.keyboard_arrow_right),
+          onTap: () {
+            const url = "https://www.twitter.com";
+
+            launch(url);
+            // Share.share("https://www.twitter.com");
+          },
+        )
       ],
     ),
   );
 }
+
+
 
 class SpActtivity extends StatelessWidget {
   @override
@@ -1247,16 +1286,33 @@ class SpActtivity extends StatelessWidget {
               title: new Text('Are you sure?'),
               content: new Text('Do you want to exit an App'),
               actions: <Widget>[
-                new FlatButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: new Text('No'),
-                ),
-                new FlatButton(
-                  onPressed: () {
-                    SystemChannels.platform.invokeMethod('SystemNavigator.pop');
-                  },
-                  child: new Text('Yes'),
-                ),
+                new Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    AdmobBanner(
+                      adUnitId: getBannerAdUnitId(),
+                      adSize: AdmobBannerSize.LARGE_BANNER,
+                    ),
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          new FlatButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: new Text('No'),
+                          ),
+                          new FlatButton(
+                            onPressed: () {
+                              SystemChannels.platform
+                                  .invokeMethod('SystemNavigator.pop');
+                            },
+                            child: new Text('Yes'),
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
+                )
               ],
             ),
           )) ??
@@ -1274,11 +1330,13 @@ class MainActivity extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("App Name"),
+        title: Text(APP_NAME),
         actions: <Widget>[
           IconButton(
             icon: Icon(Icons.share),
-            onPressed: () {},
+            onPressed: () {
+              Share.share(APP_SHARE_LINK);
+            },
           ),
         ],
       ),
@@ -1287,19 +1345,19 @@ class MainActivity extends StatelessWidget {
     );
   }
 }
-
-class PDFScreen extends StatelessWidget {
-  String pathPDF = "";
-
-  PDFScreen(this.pathPDF);
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      child: downlaodAndShowPDF(pathPDF, context),
-    );
-  }
-}
+//
+//class PDFScreen extends StatelessWidget {
+//  String pathPDF = "";
+//
+//  PDFScreen(this.pathPDF);
+//
+//  @override
+//  Widget build(BuildContext context) {
+//    return WillPopScope(
+//      child: downlaodAndShowPDF(pathPDF, context),
+//    );
+//  }
+//}
 
 class myRetrivedData {
   List<Categories> categories;
@@ -1322,23 +1380,6 @@ Future<String> copyAsset(String path) async {
   return tempFile.path;
 }
 
-String getAppId() {
-  if (Platform.isIOS) {
-    return 'ca-app-pub-3940256099942544~1458002511';
-  } else if (Platform.isAndroid) {
-    return 'ca-app-pub-3940256099942544~3347511713';
-  }
-  return null;
-}
-
-String getBannerAdUnitId() {
-  if (Platform.isIOS) {
-    return 'ca-app-pub-3940256099942544/2934735716';
-  } else if (Platform.isAndroid) {
-    return 'ca-app-pub-3940256099942544/6300978111';
-  }
-  return null;
-}
 //add helpler start
 
 const String testDevice = 'YOUR_DEVICE_ID';
@@ -1346,50 +1387,7 @@ const String testDevice = 'YOUR_DEVICE_ID';
 //add helper ends
 
 //html vier start
-class HtmlViwer extends StatelessWidget {
-  final String text;
 
-  HtmlViwer({Key key, @required this.text}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    Future<bool> _onWillPop() async {
-      return (await showDialog(
-            context: context,
-            builder: (context) => new AlertDialog(
-              title: new Text('Are you sure?'),
-              content: new Text('Do you want to exit an App'),
-              actions: <Widget>[
-                new FlatButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: new Text('No'),
-                ),
-                new FlatButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
-                  child: new Text('Yes'),
-                ),
-              ],
-            ),
-          )) ??
-          false;
-    }
-
-    return WillPopScope(
-        onWillPop: _onWillPop,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text("Description"),
-          ),
-          body: SingleChildScrollView(child: Text("ok")
-//            child: Html(
-//              data: text,
-//            ),
-              ),
-        ));
-  }
-}
 //html ends
 
 Future<String> createFileOfPdfUrl(String url_, BuildContext c) async {
@@ -1628,7 +1626,7 @@ class _AudioAppState extends State<AudioApp> {
           children: [
             if (duration != null)
               Container(
-                height: 35,
+                height: 45,
                 child: Stack(
                   children: <Widget>[
                     Positioned(
@@ -1653,23 +1651,23 @@ class _AudioAppState extends State<AudioApp> {
                   position != null
                       ? "${positionText ?? ''}"
                       : duration != null ? durationText : '',
-                  style: TextStyle(fontSize: 11.0),
+                  style: TextStyle(fontSize: 13.0),
                 ),
               IconButton(
                 onPressed: isPlaying ? null : () => play(),
-                iconSize: 32.0,
+                iconSize: 48.0,
                 icon: Icon(Icons.play_arrow),
                 color: Colors.pink,
               ),
               IconButton(
                 onPressed: isPlaying ? () => pause() : null,
-                iconSize: 32.0,
+                iconSize: 48.0,
                 icon: Icon(Icons.pause),
                 color: Colors.pink,
               ),
               IconButton(
                 onPressed: isPlaying || isPaused ? () => stop() : null,
-                iconSize: 32.0,
+                iconSize: 48.0,
                 icon: Icon(Icons.stop),
                 color: Colors.pink,
               ),
@@ -1678,7 +1676,7 @@ class _AudioAppState extends State<AudioApp> {
                   position != null
                       ? "${durationText ?? ''}"
                       : duration != null ? durationText : '',
-                  style: TextStyle(fontSize: 11.0),
+                  style: TextStyle(fontSize: 13.0),
                 ),
             ]),
 
@@ -1824,29 +1822,86 @@ Future<bool> checkIfFileAvailable(String url_, BuildContext c) async {
             context: c,
             builder: (context) => new AlertDialog(
               title: new Text('Download required'),
-              content: new Text('Do you want to Download the file'),
+              content: new Text('Do you want to Download the file ?'),
               actions: <Widget>[
-                new FlatButton(
-                  onPressed: () {
-                    doIHaveDownloadPermission = false;
-                    Navigator.of(context).pop(false);
-                    Navigator.of(context).pop();
-                    didPassedFirstTest = false;
-                  },
-                  child: new Text('No'),
-                ),
-                new FlatButton(
-                  onPressed: () {
-                    doIHaveDownloadPermission = true;
-                    didPassedFirstTest = true;
-                    Navigator.of(context).pop(true);
-                  },
-                  child: new Text('Yes'),
-                ),
+                new Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    AdmobBanner(
+                      adUnitId: getBannerAdUnitId(),
+                      adSize: AdmobBannerSize.LEADERBOARD,
+                    ),
+                    Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          new FlatButton(
+                            onPressed: () {
+                              doIHaveDownloadPermission = false;
+                              Navigator.of(context).pop(false);
+                              Navigator.of(context).pop();
+                              didPassedFirstTest = false;
+                            },
+                            child: new Text('No'),
+                          ),
+                          new FlatButton(
+                            onPressed: () {
+                              doIHaveDownloadPermission = true;
+                              didPassedFirstTest = true;
+                              Navigator.of(context).pop(true);
+                            },
+                            child: new Text('Yes'),
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
+                )
               ],
             ),
           )) ??
           false;
+      if (gg) {
+        // showThisToast("True found");
+      } else {
+        //  showThisToast("false found");
+      }
+
+      return gg;
+    }
+  }
+}
+
+Future<bool> checkIfFileAvailableNoDialog(String url_, BuildContext c) async {
+  if (url_.contains("file:///")) {
+    //  showThisToast("File was in local");
+    doIHaveDownloadPermission = true;
+    doINeedDownload = false;
+    didPassedFirstTest = true;
+    return true;
+  } else {
+    final filename = url_.substring(url_.lastIndexOf("/") + 1);
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(dir.path + "/" + filename);
+
+    if (await file.exists()) {
+      didPassedFirstTest = true;
+      // showThisToast("exixts" + "\n" + url_);
+      //showThisToast(dir.path + "/" + filename);
+      //  showThisToast("File previously downloaded");
+      doIHaveDownloadPermission = true;
+      doINeedDownload = false;
+      return true;
+    } else {
+      // showThisToast("Need to download");
+      //doIHaveDownloadPermission = false;
+      doINeedDownload = true;
+
+      didPassedFirstTest = false;
+
+      bool gg = true;
+      doIHaveDownloadPermission = true;
+      didPassedFirstTest = true;
       if (gg) {
         // showThisToast("True found");
       } else {

@@ -37,7 +37,9 @@ dependencies:
   audioplayer_web: 0.7.1
   webview_flutter: ^0.3.22+1
   circular_reveal_animation: ^1.1.5
-
+  share: ^0.6.4+3
+  url_launcher: ^5.4.10
+  firebase_messaging: ^6.0.16
 
 dev_dependencies:
   flutter_test:
